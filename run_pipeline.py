@@ -23,11 +23,23 @@ def run_command(command_list):
 
 def main():
     # --- Configuration ---
-    master_metadata_csv = "/workspace/__Done/ParkinsonFT/Data/total_use_fps_video.csv"               #"path/to/your/master_metadata_with_gt_and_groups.csv"
-    hand_joint_data_dir = "/Parkinson_ET_video/0726_data/hand_joint"        #"path/to/your/hand_joint_data_dir"  # preprocessing.py 입력
-    gt_excel = "/workspace/__Done/ParkinsonFT/Data/totalfeatures.xlsx"
+    parser = argparse.ArgumentParser(description="Run Parkinson's FT Analysis Pipeline.")
+    parser.add_argument("--master_metadata_csv", type=str, required=True,
+                        help="Path to the master metadata CSV file (e.g., total_use_fps_video.csv).")
+    parser.add_argument("--hand_joint_data_dir", type=str, required=True,
+                        help="Base directory for hand joint data (preprocessing.py input).")
+    parser.add_argument("--gt_excel", type=str, required=True,
+                        help="Path to the Excel file containing ground truth data (totalfeatures.xlsx).")
+    parser.add_argument("--base_work_dir", type=str, required=True,
+                        help="Base directory for all output files (default: /workspace/__Done/ParkinsonFT/Output).")
 
-    base_work_dir = "/workspace/__Done/ParkinsonFT/Output"   
+    args = parser.parse_args()
+
+    master_metadata_csv = args.master_metadata_csv
+    hand_joint_data_dir = args.hand_joint_data_dir
+    gt_excel = args.gt_excel
+    base_work_dir = args.base_work_dir
+     
     preprocessing_output_dir = os.path.join(base_work_dir, "preprocessed_output")
     extracted_features_csv = os.path.join(base_work_dir, "features_gt.csv")
     ml_results_csv = os.path.join(base_work_dir, "machine_learning_results.csv")
@@ -36,7 +48,7 @@ def main():
 
     preprocessing_script = "preprocessing.py"
     feature_extract_script = "feature_extract.py"
-    machinelearning_test_script = "machinelearning_test.py"
+    machinelearning_script = "machinelearning.py"
 
     # --- Pipeline Execution ---
     print("--- Starting Parkinson's FT Analysis Pipeline (Python Orchestrator) ---")
@@ -45,18 +57,18 @@ def main():
     os.makedirs(preprocessing_output_dir, exist_ok=True)
     os.makedirs(base_work_dir, exist_ok=True) 
 
-    # # Step 1: Run Preprocessing
-    # print("\n[1/3] Running preprocessing.py...")
-    # cmd_preprocess = [
-    #     python_interpreter,
-    #     preprocessing_script,
-    #     "--csv_file_path", master_metadata_csv,
-    #     "--hand_joint_dir", hand_joint_data_dir,
-    #     "--output_dir", preprocessing_output_dir
-    # ]
-    # if not run_command(cmd_preprocess):
-    #     print("Preprocess failed!", file=sys.stderr)
-    #     sys.exit(1)
+    # Step 1: Run Preprocessing
+    print("\n[1/3] Running preprocessing.py...")
+    cmd_preprocess = [
+        python_interpreter,
+        preprocessing_script,
+        "--csv_file_path", master_metadata_csv,
+        "--hand_joint_dir", hand_joint_data_dir,
+        "--output_dir", preprocessing_output_dir
+    ]
+    if not run_command(cmd_preprocess):
+        print("Preprocess failed!", file=sys.stderr)
+        sys.exit(1)
 
     # Step 2: Run Feature Extraction
     print("\n[2/3] Running feature_extract.py...")
@@ -74,14 +86,14 @@ def main():
         sys.exit(1)
 
     # Step 3: Run Machine Learning Tests
-    print("\n[3/3] Running machinelearning_test.py...")
-    cmd_ml_test = [
+    print("\n[3/3] Running machinelearning.py...")
+    cmd_ml = [
         python_interpreter,
-        machinelearning_test_script,
+        machinelearning_script,
         "--input_features_csv_file", extracted_features_csv,
         "--output_csv_file", ml_results_csv
     ]
-    if not run_command(cmd_ml_test):
+    if not run_command(cmd_ml):
         print("Machine learning tests failed!", file=sys.stderr)
         sys.exit(1)
 
