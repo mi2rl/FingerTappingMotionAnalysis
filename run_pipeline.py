@@ -1,0 +1,94 @@
+import subprocess
+import os
+import sys
+
+def run_command(command_list):
+    """Helper function to run a command and check for errors."""
+    try:
+        process = subprocess.run(command_list, check=True, text=True, capture_output=True)
+        print(process.stdout)
+        if process.stderr:
+            print("Stderr:", process.stderr, file=sys.stderr)
+        return True
+    except subprocess.CalledProcessError as e:
+        print(f"Error executing: {' '.join(command_list)}", file=sys.stderr)
+        print("Return code:", e.returncode, file=sys.stderr)
+        print("Stdout:", e.stdout, file=sys.stderr)
+        print("Stderr:", e.stderr, file=sys.stderr)
+        return False
+    except FileNotFoundError:
+        print(f"Error: The script '{command_list[1]}' was not found. Make sure it's in your PATH or the correct directory.", file=sys.stderr)
+        return False
+
+
+def main():
+    # --- Configuration ---
+    master_metadata_csv = "/workspace/__Done/ParkinsonFT/Data/total_use_fps_video.csv"               #"path/to/your/master_metadata_with_gt_and_groups.csv"
+    hand_joint_data_dir = "/Parkinson_ET_video/0726_data/hand_joint"        #"path/to/your/hand_joint_data_dir"  # preprocessing.py 입력
+    gt_excel = "/workspace/__Done/ParkinsonFT/Data/totalfeatures.xlsx"
+
+    base_work_dir = "/workspace/__Done/ParkinsonFT/Output"   
+    preprocessing_output_dir = os.path.join(base_work_dir, "preprocessed_output")
+    extracted_features_csv = os.path.join(base_work_dir, "features_gt.csv")
+    ml_results_csv = os.path.join(base_work_dir, "machine_learning_results.csv")
+
+    python_interpreter = sys.executable 
+
+    preprocessing_script = "preprocessing.py"
+    feature_extract_script = "feature_extract.py"
+    machinelearning_test_script = "machinelearning_test.py"
+
+    # --- Pipeline Execution ---
+    print("--- Starting Parkinson's FT Analysis Pipeline (Python Orchestrator) ---")
+
+    # 디렉터리 생성
+    os.makedirs(preprocessing_output_dir, exist_ok=True)
+    os.makedirs(base_work_dir, exist_ok=True) 
+
+    # # Step 1: Run Preprocessing
+    # print("\n[1/3] Running preprocessing.py...")
+    # cmd_preprocess = [
+    #     python_interpreter,
+    #     preprocessing_script,
+    #     "--csv_file_path", master_metadata_csv,
+    #     "--hand_joint_dir", hand_joint_data_dir,
+    #     "--output_dir", preprocessing_output_dir
+    # ]
+    # if not run_command(cmd_preprocess):
+    #     print("Preprocess failed!", file=sys.stderr)
+    #     sys.exit(1)
+
+    # Step 2: Run Feature Extraction
+    print("\n[2/3] Running feature_extract.py...")
+    cmd_feature_extract = [
+        python_interpreter,
+        feature_extract_script,
+        "--metadata_input_csv_path", master_metadata_csv,
+        "--peak_files_base_dir", preprocessing_output_dir,
+        "--distance_files_base_dir", preprocessing_output_dir,
+        "--gt_excel_path", gt_excel,
+        "--output_csv_file", extracted_features_csv
+    ]
+    if not run_command(cmd_feature_extract):
+        print("Feature extraction failed!", file=sys.stderr)
+        sys.exit(1)
+
+    # Step 3: Run Machine Learning Tests
+    print("\n[3/3] Running machinelearning_test.py...")
+    cmd_ml_test = [
+        python_interpreter,
+        machinelearning_test_script,
+        "--input_features_csv_file", extracted_features_csv,
+        "--output_csv_file", ml_results_csv
+    ]
+    if not run_command(cmd_ml_test):
+        print("Machine learning tests failed!", file=sys.stderr)
+        sys.exit(1)
+
+    print("\n--- Pipeline finished successfully! ---")
+    print(f"Preprocessing outputs in: {preprocessing_output_dir}")
+    print(f"Extracted features with GT in: {extracted_features_csv}")
+    print(f"Machine learning results in: {ml_results_csv}")
+
+if __name__ == "__main__":
+    main()
